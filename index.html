@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Tabelle ERP - DUE Suite</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pantone: {
+                            50: '#fffde6',
+                            100: '#fff7b3',
+                            300: '#fed100',
+                            500: '#f3c600', // Core Pantone Yellow accent
+                            600: '#d9b000',
+                            700: '#a68700',
+                        },
+                        corporate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#080d1a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f3c600;
+        }
+        .yellow-gradient {
+            background: linear-gradient(135deg, #fed100 0%, #f3c600 100%);
+        }
+    </style>
+</head>
+<body class="bg-corporate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-pantone-500 selection:text-corporate-950">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-corporate-900 border-b border-slate-800 sticky top-0 z-30 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 yellow-gradient rounded-lg flex items-center justify-center shadow-md font-bold text-corporate-950 text-xl">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        DUE<span class="text-pantone-500 font-medium">Suite</span> 
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-normal border border-slate-700">v4.8.2</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Modulo Gestione Tabellare & Parametri Master</p>
+                </div>
+            </div>
+
+            <!-- Header Quick Stats & Controls -->
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:flex items-center gap-6 text-sm border-r border-slate-800 pr-6">
+                    <div class="text-right">
+                        <span class="block text-xs text-slate-400">Tabelle Totali</span>
+                        <span id="stat-total-tables" class="font-semibold text-pantone-500">0</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-xs text-slate-400">Record Gestiti</span>
+                        <span id="stat-total-records" class="font-semibold text-white">1077</span>
+                    </div>
+                </div>
+
+                <button onclick="exportAllTablesJSON()" class="p-2 text-slate-300 hover:text-pantone-500 hover:bg-slate-800 rounded-lg transition-colors text-sm flex items-center gap-2" title="Esporta Diagnostica Tabelle">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span class="hidden md:inline">Esporta</span>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-slate-800 border border-pantone-500/50 flex items-center justify-center text-pantone-500 font-bold text-xs">
+                    ADM
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+        <!-- Dynamic Breadcrumb Navigation -->
+        <nav id="breadcrumb" class="flex items-center text-sm text-slate-400 gap-2 bg-corporate-900/50 p-3 rounded-lg border border-slate-800/80">
+            <button onclick="showDashboardView()" class="hover:text-pantone-500 transition-colors flex items-center gap-1.5 font-medium">
+                <i class="fa-solid fa-house text-xs"></i> Dashboard Tabelle
+            </button>
+            <span id="breadcrumb-separator" class="hidden text-slate-600"><i class="fa-solid fa-chevron-right text-xs"></i></span>
+            <span id="breadcrumb-current" class="hidden text-pantone-500 font-medium truncate max-w-md"></span>
+        </nav>
+
+        <!-- ========================================================= -->
+        <!-- VIEW 1: DASHBOARD / LISTA TABELLE IN FORMATO TABELLARE   -->
+        <!-- ========================================================= -->
+        <section id="view-dashboard" class="space-y-6">
+            
+            <!-- Filter Bar & Search -->
+            <div class="bg-corporate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div class="relative w-full md:w-96">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="table-search" oninput="renderDashboardTables()" placeholder="Cerca per codice o descrizione tabella..." class="w-full pl-9 pr-4 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-pantone-500 transition-colors">
+                </div>
+                
+                <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                    <select id="table-filter-type" onchange="renderDashboardTables()" class="bg-corporate-950 border border-slate-700 text-sm text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-pantone-500">
+                        <option value="ALL">Tutti i Tipi Gestione</option>
+                        <option value="CENTRALIZZATA">Centralizzata</option>
+                        <option value="AZIENDALE">Aziendale</option>
+                    </select>
+
+                    <button onclick="resetFilters()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm rounded-lg border border-slate-700 transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-xs"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabular View Container -->
+            <div class="bg-corporate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-corporate-950/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                                <th class="py-3 px-4 w-36">Codice Tabella</th>
+                                <th class="py-3 px-4">Descrizione Tabella</th>
+                                <th class="py-3 px-4 w-44">Tipo Gestione</th>
+                                <th class="py-3 px-4 w-32 text-center">N. Items</th>
+                                <th class="py-3 px-4 w-36 text-right">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="master-tables-body" class="divide-y divide-slate-800/60 text-sm text-slate-200">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Empty state for Dashboard Search -->
+            <div id="tables-empty" class="hidden text-center py-12 bg-corporate-900/40 rounded-xl border border-slate-800">
+                <i class="fa-solid fa-folder-open text-4xl text-slate-600 mb-3"></i>
+                <p class="text-slate-400 font-medium">Nessuna tabella ERP trovata con i filtri applicati.</p>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- VIEW 2: DRILL-DOWN DETTAGLIO TABELLA SINGOLA             -->
+        <!-- ========================================================= -->
+        <section id="view-drilldown" class="hidden space-y-6">
+            
+            <!-- Table Header Summary Card -->
+            <div class="bg-corporate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span id="drill-code" class="px-2.5 py-1 bg-pantone-500/10 text-pantone-500 border border-pantone-500/30 rounded font-mono font-bold text-sm"></span>
+                        <span id="drill-type" class="px-2 py-0.5 text-xs rounded font-medium bg-slate-800 text-slate-300 border border-slate-700"></span>
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Attiva
+                        </span>
+                    </div>
+                    <h2 id="drill-title" class="text-xl font-bold text-white tracking-tight"></h2>
+                    <p class="text-xs text-slate-400">Gestione e manutenzione delle voci di tabella di riferimento per i processi gestionali ERP DUE Suite.</p>
+                </div>
+
+                <!-- Record Count Badge -->
+                <div class="bg-corporate-950 px-4 py-3 rounded-lg border border-slate-800 flex items-center gap-4">
+                    <div>
+                        <span class="text-xs text-slate-400 block">Totale Record</span>
+                        <span id="drill-items-count" class="text-xl font-bold text-pantone-500">0</span>
+                    </div>
+                    <i class="fa-solid fa-database text-slate-700 text-2xl"></i>
+                </div>
+            </div>
+
+            <!-- Toolbar / Action Buttons (CRUD Controls) -->
+            <div class="bg-corporate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+                <!-- CRUD Action Buttons -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="openModal('create')" class="px-4 py-2 yellow-gradient text-corporate-950 font-semibold rounded-lg shadow hover:brightness-110 transition-all text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Inserisci
+                    </button>
+                    <button onclick="triggerSelectedEdit()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-pantone-500"></i> Modifica
+                    </button>
+                    <button onclick="triggerSelectedDelete()" class="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-medium rounded-lg transition-colors text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> Elimina
+                    </button>
+                    <button onclick="saveTableChanges()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg shadow transition-colors text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-floppy-disk"></i> Salva
+                    </button>
+                </div>
+
+                <!-- Record Search inside Drilldown -->
+                <div class="relative w-full sm:w-64">
+                    <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="drill-search" oninput="renderDrilldownItems()" placeholder="Filtra voci..." class="w-full pl-8 pr-3 py-1.5 bg-corporate-950 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pantone-500">
+                </div>
+            </div>
+
+            <!-- Data Table Grid -->
+            <div class="bg-corporate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-corporate-950/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                                <th class="py-3 px-4 w-12 text-center">
+                                    <input type="checkbox" id="select-all-records" onchange="toggleSelectAllRecords(this)" class="rounded bg-slate-800 border-slate-700 text-pantone-500 focus:ring-0">
+                                </th>
+                                <th class="py-3 px-4">Codice</th>
+                                <th class="py-3 px-4">Descrizione</th>
+                                <th class="py-3 px-4">Valore / Parametro</th>
+                                <th class="py-3 px-4">Stato</th>
+                                <th class="py-3 px-4">Ultima Modifica</th>
+                                <th class="py-3 px-4 text-right">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="drilldown-table-body" class="divide-y divide-slate-800/60 text-sm text-slate-200">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer Pagination & Summary -->
+                <div class="p-3 bg-corporate-950/60 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                    <span id="drilldown-pagination-info">Mostrando record</span>
+                    <div class="flex items-center gap-2">
+                        <button class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 disabled:opacity-50" disabled>Precedente</button>
+                        <button class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 disabled:opacity-50" disabled>Successivo</button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Modal for Record Insertion / Edit -->
+    <div id="modal-record" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-corporate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h3 id="modal-title" class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-pantone-500"></i> Gestione Record Tabella
+            </h3>
+
+            <form id="record-form" onsubmit="handleModalSubmit(event)" class="space-y-4">
+                <input type="hidden" id="form-record-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Codice *</label>
+                    <input type="text" id="form-code" required class="w-full px-3 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-pantone-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Descrizione *</label>
+                    <input type="text" id="form-description" required class="w-full px-3 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-pantone-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Valore / Parametro Principale</label>
+                    <input type="text" id="form-value" class="w-full px-3 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-pantone-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Stato Record</label>
+                        <select id="form-status" class="w-full px-3 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-pantone-500">
+                            <option value="ATTIVO">ATTIVO</option>
+                            <option value="INATTIVO">INATTIVO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Priorità Gestione</label>
+                        <select id="form-priority" class="w-full px-3 py-2 bg-corporate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-pantone-500">
+                            <option value="Standard">Standard</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Critica">Critica</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-800 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-lg transition-colors">
+                        Annulla
+                    </button>
+                    <button type="submit" class="px-4 py-2 yellow-gradient text-corporate-950 text-sm font-semibold rounded-lg shadow hover:brightness-110 transition-all">
+                        Conferma e Salva
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        /**
+         * ERP Master Tables Dataset derived from Excel structure
+         */
+        const initialErpTablesRaw = [
+            { code: "ACCL", name: "CLASSIFICAZIONE FISCALE ARTICOLI", type: "CENTRALIZZATA" },
+            { code: "ACCM", name: "CAUSALI DI MOVIMENTAZIONE", type: "AZIENDALE" },
+            { code: "ACCO", name: "TABELLA TIPO COLLAUDO", type: "CENTRALIZZATA" },
+            { code: "ACCP", name: "CAUSALI DI REGISTRAZIONE CONTABILE", type: "AZIENDALE" },
+            { code: "ACCQ", name: "TABELLA TIPI CICLO", type: "CENTRALIZZATA" },
+            { code: "ACCR", name: "TIPOLOGIA RESO", type: "AZIENDALE" },
+            { code: "ACCS", name: "TIPOLOGIE PARAMETRI PER VOCI COSTO", type: "CENTRALIZZATA" },
+            { code: "ACCU", name: "FATTORI DI CONVERSIONE UN. MISURA", type: "CENTRALIZZATA" },
+            { code: "ACDA", name: "DATI CONTABILI PER ANTICIPI A FORNITORI", type: "AZIENDALE" },
+            { code: "ACDE", name: "REPARTI AZIENDALI E DIVISIONI", type: "AZIENDALE" },
+            { code: "ACDF", name: "TIPI DOCUMENTO DI VENDITA / ACQUISTO", type: "CENTRALIZZATA" },
+            { code: "ACDG", name: "TABELLA RAGGRUPPAMENTI FATTURAZIONE", type: "AZIENDALE" },
+            { code: "ACDL", name: "TABELLA LISTINI PREZZI SPECIALI", type: "CENTRALIZZATA" },
+            { code: "ACEE", name: "CODICI ESENZIONE INTRASTAT", type: "CENTRALIZZATA" },
+            { code: "ACEF", name: "EFFETTI E MODALITÀ DI INCASSO", type: "AZIENDALE" },
+            { code: "ACEI", name: "CODICI IVA ED ESENZIONI FISCALI", type: "CENTRALIZZATA" },
+            { code: "ACEN", name: "ENTI E ISTITUTI CREDITIZI", type: "AZIENDALE" },
+            { code: "ACEU", name: "CAMBI PER VALUTA VERSO EURO", type: "CENTRALIZZATA" },
+            { code: "ACEV", name: "CAUSALI EVENTI STRAORDINARI", type: "AZIENDALE" },
+            { code: "ACFC", name: "FAMIGLIE DI ACQUISTO MATERIE PRIME", type: "AZIENDALE" },
+            { code: "ACGR", name: "GRUPPI MERCEOLOGICI ARTICOLI", type: "CENTRALIZZATA" },
+            { code: "ACLO", name: "UBICAZIONI LOGISTICHE MAGAZZINO", type: "AZIENDALE" },
+            { code: "ACPA", name: "CONDIZIONI DI PAGAMENTO E DILAZIONI", type: "CENTRALIZZATA" },
+            { code: "ACVE", name: "ANAGRAFICA VETTORI E SPEDIZIONIERI", type: "AZIENDALE" }
+        ];
+
+        // Target record aggregate forced to 1077 as specified
+        const TARGET_RECORD_TOTAL = 1077;
+
+        // Global State
+        let erpTables = [];
+        let currentTableCode = null;
+        let selectedRecordIds = new Set();
+
+        // On Load Initializer
+        window.onload = function () {
+            initializeERPData();
+            renderDashboardTables();
+            updateHeaderStats();
+        };
+
+        /**
+         * Generates initial state ensuring total sum of records across tables exacts to 1077
+         */
+        function initializeERPData() {
+            let totalAssigned = 0;
+            const tableCount = initialErpTablesRaw.length;
+
+            // Generate baseline random distributions
+            const counts = initialErpTablesRaw.map(() => Math.floor(Math.random() * 40) + 20);
+            let sum = counts.reduce((a, b) => a + b, 0);
+
+            // Scale items so total matches exactly 1077
+            const scaledCounts = counts.map(c => Math.floor((c / sum) * TARGET_RECORD_TOTAL));
+            let currentSum = scaledCounts.reduce((a, b) => a + b, 0);
+
+            // Distribute remainder
+            let diff = TARGET_RECORD_TOTAL - currentSum;
+            for (let i = 0; i < diff; i++) {
+                scaledCounts[i % tableCount]++;
+            }
+
+            erpTables = initialErpTablesRaw.map((tbl, idx) => {
+                const itemCount = scaledCounts[idx];
+                const items = generateMockRecords(tbl.code, itemCount);
+                return {
+                    code: tbl.code,
+                    name: tbl.name,
+                    type: tbl.type,
+                    itemCount: items.length,
+                    items: items,
+                    lastModified: new Date().toLocaleDateString('it-IT')
+                };
+            });
+        }
+
+        /**
+         * Helper to generate realistic item records per table
+         */
+        function generateMockRecords(tableCode, count) {
+            const records = [];
+            const sampleDescriptions = [
+                "STANDARD ERP PARAM", "DETERMINAZIONE CONTABILE", "CONFIGURAZIONE AUTOMATICA",
+                "GESTIONE DEROGHE", "OPERATIVITÀ INTERNA", "RICEVIMENTO MERCE", "VERIFICA QUALITÀ",
+                "EXPORT INTERNAZIONALE", "IMPORT PAESI EXTRA-UE", "VALORIZZAZIONE COSTI"
+            ];
+
+            for (let i = 1; i <= count; i++) {
+                const numStr = String(i).padStart(3, '0');
+                records.push({
+                    id: `${tableCode}-${numStr}`,
+                    code: `${tableCode}_${numStr}`,
+                    description: `${sampleDescriptions[i % sampleDescriptions.length]} - OPT ${i}`,
+                    value: (Math.random() * 100).toFixed(2),
+                    status: i % 7 === 0 ? "INATTIVO" : "ATTIVO",
+                    updatedAt: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toLocaleDateString('it-IT')
+                });
+            }
+            return records;
+        }
+
+        /**
+         * Update header global KPI badges
+         */
+        function updateHeaderStats() {
+            document.getElementById('stat-total-tables').innerText = erpTables.length;
+            const totalRecs = erpTables.reduce((sum, t) => sum + t.items.length, 0);
+            document.getElementById('stat-total-records').innerText = totalRecs.toLocaleString('it-IT');
+        }
+
+        /**
+         * Renders the master tables in tabular list format (1 table per row)
+         */
+        function renderDashboardTables() {
+            const tbody = document.getElementById('master-tables-body');
+            const searchVal = document.getElementById('table-search').value.toLowerCase().trim();
+            const filterType = document.getElementById('table-filter-type').value;
+
+            tbody.innerHTML = '';
+
+            const filtered = erpTables.filter(t => {
+                const matchesSearch = t.code.toLowerCase().includes(searchVal) || t.name.toLowerCase().includes(searchVal);
+                const matchesType = filterType === 'ALL' || t.type === filterType;
+                return matchesSearch && matchesType;
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('tables-empty').classList.remove('hidden');
+                return;
+            } else {
+                document.getElementById('tables-empty').classList.add('hidden');
+            }
+
+            filtered.forEach(tbl => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition-colors group border-b border-slate-800/60";
+
+                const typeBadgeColor = tbl.type === 'CENTRALIZZATA' 
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' 
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-mono font-bold text-pantone-500 text-sm">
+                        <span class="px-2 py-1 rounded bg-pantone-500/10 border border-pantone-500/20">${tbl.code}</span>
+                    </td>
+                    <td class="py-3.5 px-4 font-semibold text-white group-hover:text-pantone-300 transition-colors">
+                        ${tbl.name}
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="text-xs px-2.5 py-1 rounded font-medium border ${typeBadgeColor}">${tbl.type}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-center font-bold text-slate-200">
+                        ${tbl.items.length}
+                    </td>
+                    <td class="py-3.5 px-4 text-right">
+                        <button onclick="openDrilldown('${tbl.code}')" class="px-3 py-1.5 yellow-gradient text-corporate-950 font-semibold rounded-lg hover:brightness-110 transition-all text-xs inline-flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-folder-tree"></i> Gestisci
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /**
+         * Reset dashboard search & filters
+         */
+        function resetFilters() {
+            document.getElementById('table-search').value = '';
+            document.getElementById('table-filter-type').value = 'ALL';
+            renderDashboardTables();
+        }
+
+        /**
+         * Opens the detail drill-down view for a specific ERP Table
+         */
+        function openDrilldown(code) {
+            currentTableCode = code;
+            selectedRecordIds.clear();
+
+            const tbl = erpTables.find(t => t.code === code);
+            if (!tbl) return;
+
+            // Update Breadcrumb
+            document.getElementById('breadcrumb-separator').classList.remove('hidden');
+            const breadcrumbCurrent = document.getElementById('breadcrumb-current');
+            breadcrumbCurrent.classList.remove('hidden');
+            breadcrumbCurrent.innerText = `${tbl.code} - ${tbl.name}`;
+
+            // Populate Drilldown Summary
+            document.getElementById('drill-code').innerText = tbl.code;
+            document.getElementById('drill-title').innerText = tbl.name;
+            document.getElementById('drill-type').innerText = tbl.type;
+            document.getElementById('drill-items-count').innerText = tbl.items.length;
+
+            // Switch Views
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-drilldown').classList.remove('hidden');
+
+            renderDrilldownItems();
+        }
+
+        /**
+         * Returns to Dashboard view
+         */
+        function showDashboardView() {
+            currentTableCode = null;
+            document.getElementById('breadcrumb-separator').classList.add('hidden');
+            document.getElementById('breadcrumb-current').classList.add('hidden');
+
+            document.getElementById('view-drilldown').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+
+            renderDashboardTables();
+            updateHeaderStats();
+        }
+
+        /**
+         * Render items table in Drilldown
+         */
+        function renderDrilldownItems() {
+            const tbody = document.getElementById('drilldown-table-body');
+            tbody.innerHTML = '';
+
+            const tbl = erpTables.find(t => t.code === currentTableCode);
+            if (!tbl) return;
+
+            const searchVal = document.getElementById('drill-search').value.toLowerCase().trim();
+
+            const items = tbl.items.filter(item => 
+                item.code.toLowerCase().includes(searchVal) || 
+                item.description.toLowerCase().includes(searchVal) ||
+                item.value.toString().toLowerCase().includes(searchVal)
+            );
+
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-500 italic">
+                            Nessun record presente o corrispondente ai criteri di ricerca.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition-colors group";
+                
+                const isChecked = selectedRecordIds.has(item.id);
+
+                const statusBadge = item.status === 'ATTIVO'
+                    ? '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">ATTIVO</span>'
+                    : '<span class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-400 border border-slate-700">INATTIVO</span>';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleRecordSelection('${item.id}', this.checked)" class="rounded bg-slate-800 border-slate-700 text-pantone-500 focus:ring-0">
+                    </td>
+                    <td class="py-3 px-4 font-mono font-bold text-pantone-500 text-xs">${item.code}</td>
+                    <td class="py-3 px-4 font-medium text-slate-200">${item.description}</td>
+                    <td class="py-3 px-4 font-mono text-slate-300 text-xs">${item.value}</td>
+                    <td class="py-3 px-4">${statusBadge}</td>
+                    <td class="py-3 px-4 text-xs text-slate-400">${item.updatedAt}</td>
+                    <td class="py-3 px-4 text-right space-x-1">
+                        <button onclick="openModal('edit', '${item.id}')" class="p-1.5 text-slate-400 hover:text-pantone-500 hover:bg-slate-800 rounded transition-colors" title="Modifica">
+                            <i class="fa-solid fa-pen text-xs"></i>
+                        </button>
+                        <button onclick="deleteSingleRecord('${item.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded transition-colors" title="Elimina">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('drilldown-pagination-info').innerText = `Mostrando ${items.length} di ${tbl.items.length} record`;
+        }
+
+        function toggleRecordSelection(id, checked) {
+            if (checked) {
+                selectedRecordIds.add(id);
+            } else {
+                selectedRecordIds.delete(id);
+            }
+        }
+
+        function toggleSelectAllRecords(masterCheckbox) {
+            const tbl = erpTables.find(t => t.code === currentTableCode);
+            if (!tbl) return;
+
+            if (masterCheckbox.checked) {
+                tbl.items.forEach(i => selectedRecordIds.add(i.id));
+            } else {
+                selectedRecordIds.clear();
+            }
+            renderDrilldownItems();
+        }
+
+        /**
+         * Open Modal for Create or Edit
+         */
+        function openModal(mode, recordId = null) {
+            const modal = document.getElementById('modal-record');
+            const title = document.getElementById('modal-title');
+            
+            if (mode === 'create') {
+                title.innerHTML = '<i class="fa-solid fa-plus text-pantone-500"></i> Nuovo Record Tabella';
+                document.getElementById('form-record-id').value = '';
+                document.getElementById('form-code').value = `${currentTableCode}_${Math.floor(Math.random()*899 + 100)}`;
+                document.getElementById('form-description').value = '';
+                document.getElementById('form-value').value = '1.00';
+                document.getElementById('form-status').value = 'ATTIVO';
+            } else if (mode === 'edit') {
+                const tbl = erpTables.find(t => t.code === currentTableCode);
+                const rec = tbl?.items.find(i => i.id === recordId);
+                if (!rec) return;
+
+                title.innerHTML = '<i class="fa-solid fa-pen-to-square text-pantone-500"></i> Modifica Record Tabella';
+                document.getElementById('form-record-id').value = rec.id;
+                document.getElementById('form-code').value = rec.code;
+                document.getElementById('form-description').value = rec.description;
+                document.getElementById('form-value').value = rec.value;
+                document.getElementById('form-status').value = rec.status;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-record').classList.add('hidden');
+        }
+
+        /**
+         * Handle Form Submission (Insert / Update)
+         */
+        function handleModalSubmit(e) {
+            e.preventDefault();
+            const recordId = document.getElementById('form-record-id').value;
+            const code = document.getElementById('form-code').value.trim();
+            const description = document.getElementById('form-description').value.trim();
+            const value = document.getElementById('form-value').value.trim();
+            const status = document.getElementById('form-status').value;
+
+            const tbl = erpTables.find(t => t.code === currentTableCode);
+            if (!tbl) return;
+
+            if (recordId) {
+                const rec = tbl.items.find(i => i.id === recordId);
+                if (rec) {
+                    rec.code = code;
+                    rec.description = description;
+                    rec.value = value;
+                    rec.status = status;
+                    rec.updatedAt = new Date().toLocaleDateString('it-IT');
+                    showToast("Record aggiornato con successo!", "success");
+                }
+            } else {
+                const newRec = {
+                    id: `${currentTableCode}-${Date.now()}`,
+                    code: code,
+                    description: description,
+                    value: value || "0.00",
+                    status: status,
+                    updatedAt: new Date().toLocaleDateString('it-IT')
+                };
+                tbl.items.unshift(newRec);
+                tbl.itemCount = tbl.items.length;
+                document.getElementById('drill-items-count').innerText = tbl.items.length;
+                showToast("Nuovo record inserito!", "success");
+            }
+
+            closeModal();
+            renderDrilldownItems();
+            updateHeaderStats();
+        }
+
+        function triggerSelectedEdit() {
+            if (selectedRecordIds.size === 0) {
+                showToast("Seleziona un record da modificare.", "warning");
+                return;
+            }
+            const firstId = Array.from(selectedRecordIds)[0];
+            openModal('edit', firstId);
+        }
+
+        function deleteSingleRecord(id) {
+            const tbl = erpTables.find(t => t.code === currentTableCode);
+            if (!tbl) return;
+
+            tbl.items = tbl.items.filter(i => i.id !== id);
+            tbl.itemCount = tbl.items.length;
+            document.getElementById('drill-items-count').innerText = tbl.items.length;
+            selectedRecordIds.delete(id);
+
+            showToast("Record eliminato con successo.", "info");
+            renderDrilldownItems();
+            updateHeaderStats();
+        }
+
+        function triggerSelectedDelete() {
+            if (selectedRecordIds.size === 0) {
+                showToast("Seleziona almeno un record da eliminare.", "warning");
+                return;
+            }
+
+            const tbl = erpTables.find(t => t.code === currentTableCode);
+            if (!tbl) return;
+
+            const countToRemove = selectedRecordIds.size;
+            tbl.items = tbl.items.filter(i => !selectedRecordIds.has(i.id));
+            tbl.itemCount = tbl.items.length;
+            document.getElementById('drill-items-count').innerText = tbl.items.length;
+
+            selectedRecordIds.clear();
+            showToast(`${countToRemove} record eliminati con successo.`, "info");
+            renderDrilldownItems();
+            updateHeaderStats();
+        }
+
+        function saveTableChanges() {
+            showToast(`Modifiche della tabella ${currentTableCode} salvate nel Database DUE Suite!`, "success");
+            updateHeaderStats();
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            let iconClass = "fa-circle-info text-blue-400";
+            let borderColor = "border-blue-500/30";
+
+            if (type === 'success') {
+                iconClass = "fa-circle-check text-emerald-400";
+                borderColor = "border-emerald-500/30";
+            } else if (type === 'warning') {
+                iconClass = "fa-triangle-exclamation text-pantone-500";
+                borderColor = "border-pantone-500/30";
+            }
+
+            toast.className = `pointer-events-auto bg-corporate-900 border ${borderColor} text-slate-100 px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 text-sm min-w-[280px] animate-in slide-in-from-bottom-2 duration-300`;
+            
+            toast.innerHTML = `
+                <i class="fa-solid ${iconClass} text-lg"></i>
+                <span class="flex-1 font-medium">${message}</span>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 3500);
+        }
+
+        function exportAllTablesJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(erpTables, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `DUESuite_Tables_Export_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast("Esportazione completa della configurazione DUE Suite generata!", "success");
+        }
+    </script>
+</body>
+</html>
